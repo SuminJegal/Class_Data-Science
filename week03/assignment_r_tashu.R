@@ -1,9 +1,15 @@
-setwd("/Users/jegalsumin/Documents/Data Science/Class_Data-Science/week03")
+setwd("/Users/jegalsumin/Documents/Data Science/Data set/week03")
+rm(list=ls())
 
 library(data.table)
 library(ggplot2)
 library(plyr)
 library(ggmap)
+library(extrafont)
+library(scales)
+library(data.table)
+library(stringr)
+library(chorddiag)
 
 #데이터 읽어오기
 tashu_csv <- read.csv("tashu.csv")
@@ -70,3 +76,45 @@ point_trace <- ggplot(data=trace, aes(x=RENT_STATION, y=RETURN_STATION, size = f
   scale_y_continuous(breaks=seq(0, max(trace$RETURN_STATION), 10)) +
   coord_fixed(ratio = 3/4)
 point_trace
+
+#top10 경로 그리기 (과제2 되어있어야함)
+top10_line <- trace[1:10,]
+top10_line <- cbind(top10_line,data.frame(group = c(1,2,3,4,5,6,7,8,9,10)))
+top10_trace <- top10_line[rep(seq_len(nrow(top10_line)), each=2),]
+rownames(top10_trace) <- NULL
+for(i in 1:20) {
+  if(i%%2 == 0) {
+    if(top10_trace[i,'RENT_STATION'] != top10_trace[i,'RETURN_STATION']){
+      top10_trace[i,'RENT_STATION'] <- top10_trace[i,'RETURN_STATION']
+    }
+  }
+}
+top10_trace <- top10_trace[,-2]
+top10_trace <- rename(top10_trace, c("RENT_STATION"="키오스크번호"))
+top10_trace <- merge(x = top10_trace, y = total_station , by = '키오스크번호')
+tm <-
+  ggmap(get_googlemap(center=daejon_cent, scale = 1, maptype = "roadmap", zoom=13)) + 
+  geom_path(aes(x=as.numeric(as.character(lon)), y=as.numeric(as.character(lat)), group=group), data=top10_trace, alpha=0.8, color='red')
+tm
+
+
+# Top 20 trace chord diagram
+top20_trace_matrix <- matrix(0, 108, 108)
+
+for(i in 1:20) {
+  from <- trace[i, 1]
+  to <- trace[i, 2]
+  freq <- trace[i, 3]
+  top20_trace_matrix[from, to] <- freq
+}
+
+palette <- c("#466791","#60bf37","#953ada","#4fbe6c","#ce49d3",
+             "#a7b43d","#5a51dc","#d49f36","#552095","#507f2d",
+             "#db37aa","#84b67c","#a06fda","#df462a","#5b83db",
+             "#c76c2d","#4f49a3","#82702d","#dd6bbb","#334c22")
+haircolors <- head(station_csv$명칭, 108)
+dimnames(top20_trace_matrix) <- list(have = haircolors, prefer = haircolors)
+top20_trace_chord <- chorddiag(top20_trace_matrix, groupColors = palette,
+                               groupnamePadding = 40, groupnameFontsize = 10)
+
+top20_trace_chord
